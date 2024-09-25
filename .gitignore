@@ -1,0 +1,8 @@
+*.dat
+*.gz
+*.idx3-ubyte
+*.txt
+*.exe
+*.idx1-ubyte
+*.test
+*.bak
