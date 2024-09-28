@@ -106,7 +106,6 @@ public:
         return nextLayerSize;
     }
     friend class Network;
-    friend int main();
     friend std::ostream& operator<< (std::ostream&, const Layer&);
     friend std::istream& operator>> (std::istream&, Layer&);
 };

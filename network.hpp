@@ -33,7 +33,13 @@ class Network {
     Layer outputLayer;
 public:
     template <class I, typename = std::enable_if_t<std::is_integral_v<I>>>
-    Network(ssize_t inputLayerNodeCounts, ssize_t outputLayerNodeCounts, const std::vector<I>& hiddenLayersNodeCounts): 
+    Network(ssize_t inputLayerNodeCounts
+                , ssize_t outputLayerNodeCounts
+                , const std::vector<I>& hiddenLayersNodeCounts
+                , const std::vector<ActivationFunctions>& hiddenLayersActivationFunctionEnum = {}
+                , const ActivationFunctions& outputLayerActivationFunctionEnum = ActivationFunctions::SOFTMAX
+                , const LossFunctions& outputLayerLossFunctionEnum = LossFunctions::CROSS_ENTROPY_LOSS
+            ): 
         inputLayer(inputLayerNodeCounts
                     , (hiddenLayersNodeCounts.size() == 0)? outputLayerNodeCounts: hiddenLayersNodeCounts.at(0)
                     , std::mt19937(std::random_device()())
@@ -46,17 +52,18 @@ public:
                         , std::mt19937(std::random_device()())
                         , std::normal_distribution(0., sqrt(2. / (inputLayerNodeCounts + outputLayerNodeCounts)))
                         , std::normal_distribution(0., .001)
-                        , ActivationFunctions::SOFTMAX
-                        , LossFunctions::CROSS_ENTROPY_LOSS
+                        , outputLayerActivationFunctionEnum
+                        , outputLayerLossFunctionEnum
                     )
     {
+        assert(hiddenLayersActivationFunctionEnum.size() == hiddenLayersNodeCounts.size() || !hiddenLayersActivationFunctionEnum.size());
         for (ssize_t i = 0; i < hiddenLayersNodeCounts.size(); ++i) {
             hiddenLayers.emplace_back(hiddenLayersNodeCounts.at(i)
                                         , (i + 1 < hiddenLayersNodeCounts.size())? hiddenLayersNodeCounts.at(i): outputLayerNodeCounts
                                         , std::mt19937(std::random_device()())
                                         , std::normal_distribution(0., sqrt(2. / (inputLayerNodeCounts + outputLayerNodeCounts)))
                                         , std::normal_distribution(0., .001)
-                                        , ActivationFunctions::LEAKYRELU
+                                        , hiddenLayersActivationFunctionEnum.size()? hiddenLayersActivationFunctionEnum[i]: ActivationFunctions::LEAKYRELU
                                     );
         }
     }
@@ -90,10 +97,28 @@ public:
         inputLayer.backward(hiddenLayers[0], learningRate);
         return outputLayer.values;
     }
-    std::valarray<double> run(const std::valarray<double>& input, const std::valarray<double>& output) {
-        return this->train(input, output, 0);
+    std::valarray<double> run(const std::valarray<double>& input) {
+        inputLayer.values = input;
+        for (ssize_t i = 0; i < hiddenLayers.size(); ++i) {
+            hiddenLayers[i].forward((i == 0)? inputLayer: hiddenLayers.at(i - 1));
+        }
+        outputLayer.forward(hiddenLayers.back());
+        return outputLayer.values;
     }
-    friend int main();
+    template <class _Actual, class _BiPred>
+    bool test(const std::valarray<double>& testInputs, _Actual&& testActual, _BiPred&& biPred) {
+        std::valarray<double> testPredicted = this->run(testInputs);
+        return biPred(testPredicted, testActual);
+    }
+    template <class _Actual, class _BiPred>
+    double test(const std::valarray<std::valarray<double>>& testInputs, _Actual&& testActual, _BiPred&& biPred) {
+        ssize_t correctCounts = 0;
+        for (ssize_t i = 0; i < testInputs.size(); ++i) {
+            if (biPred(this->run(testInputs[i]), testActual[i]))
+                ++correctCounts;
+        }
+        return correctCounts / static_cast<double>(testInputs.size());
+    }
     friend std::ostream& operator<< (std::ostream&, const Network&);
     friend std::istream& operator>> (std::istream&, Network&);
 };

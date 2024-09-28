@@ -3,6 +3,7 @@
 #include <functional>
 
 enum class ActivationFunctions {
+    INVALID,
     SIGMOID,
     RELU,
     LEAKYRELU,
@@ -101,6 +102,7 @@ std::unique_ptr<ActivationFunction> ActivationFunction::buildActivationFunction(
             return std::make_unique<PrRelu>();
         case ActivationFunctions::SOFTMAX:
             return std::make_unique<Softmax>();
+        case ActivationFunctions::INVALID:
         default:
             throw std::runtime_error{"cannot build ActivationFunction"};
     }

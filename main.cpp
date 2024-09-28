@@ -7,7 +7,7 @@
 using namespace std::literals;
 
 int main() {
-    Network n(28*28, 10, std::vector{100, 100});
+    Network n(28*28, 10, std::vector{120, 84, 10}, std::vector{ActivationFunctions::PRRELU, ActivationFunctions::PRRELU, ActivationFunctions::PRRELU}, ActivationFunctions::SOFTMAX, LossFunctions::CROSS_ENTROPY_LOSS);
     if (std::ifstream ifs{"mnist-network-v1.dat", std::ios::binary}) {
         std::cout << "train on an existing network" << "\r\n";
         ifs >> n;
@@ -18,16 +18,21 @@ int main() {
     std::valarray<std::valarray<double>> trainLabelsClassified{classifyLabels(trainLabels)};
     std::valarray<std::valarray<double>> trainImages{loadImages("train-images.idx3-ubyte"s)};
     std::for_each(std::begin(trainImages), std::end(trainImages), [](std::valarray<double>& v){
-        return v / 255;
+        v /= 255;
     });
+    std::vector<ssize_t> indices(static_cast<size_t>(trainLabels.size()));
+    std::iota(indices.begin() + 1, indices.end(), 1);
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::shuffle(indices.begin(), indices.end(), gen);
     int correctCounts = 0;
     for (int i = 0; i < trainLabels.size(); ++i) {
-        auto r = n.train(trainImages[i], trainLabelsClassified[i], .0001);
-        if (getGreatestLabel(r) == static_cast<int>(trainLabels[i]))
+        auto r = n.train(trainImages[indices[i]], trainLabelsClassified[indices[i]], .001);
+        if (getGreatestLabel(r) == static_cast<int>(trainLabels[indices[i]]))
             ++correctCounts;
-        if (i % 100 == 0) {
-            std::cout << "<acc: " << (correctCounts / 100.) << "> ";
-            std::cout << "<" << trainLabels[i] << "> ";    
+        if (i % 1000 == 0) {
+            std::cout << "<acc: " << (correctCounts / 1000.) << "> ";
+            std::cout << "<" << trainLabels[indices[i]] << "> ";    
             printValarray(r, "train"s + std::to_string(i));
             correctCounts = 0;
         }
@@ -37,6 +42,15 @@ int main() {
         std::cout << "the trained network is saved." << "\r\n";
     }
 
+    std::valarray<double> testLabels{loadLabels("t10k-labels.idx1-ubyte"s)};
+    std::valarray<std::valarray<double>> testLabelsClassified{classifyLabels(testLabels)};
+    std::valarray<std::valarray<double>> testImages{loadImages("t10k-images.idx3-ubyte"s)};
+    std::for_each(std::begin(testImages), std::end(testImages), [](std::valarray<double>& v){
+        v /= 255;
+    });
+    std::cout << "result of test data: " << n.test(testImages, testLabels, [](const std::valarray<double>& predicted, const decltype(testLabels[0])& actual){
+        return getGreatestLabel(predicted) == actual;
+    }) << "\r\n";
 }
 
 void archived1() {
@@ -212,5 +226,38 @@ void misc2() {
         ifs >> n2;
     }
     std::cout << n2;
+
+}
+
+void mnist2() {
+    Network n(28*28, 10, std::vector{100, 100});
+    if (std::ifstream ifs{"mnist-network-v1.dat", std::ios::binary}) {
+        std::cout << "train on an existing network" << "\r\n";
+        ifs >> n;
+    } else {
+        std::cout << "new network" << "\r\n";
+    }
+    std::valarray<double> trainLabels{loadLabels("train-labels.idx1-ubyte"s)};
+    std::valarray<std::valarray<double>> trainLabelsClassified{classifyLabels(trainLabels)};
+    std::valarray<std::valarray<double>> trainImages{loadImages("train-images.idx3-ubyte"s)};
+    std::for_each(std::begin(trainImages), std::end(trainImages), [](std::valarray<double>& v){
+        return v / 255;
+    });
+    int correctCounts = 0;
+    for (int i = 0; i < trainLabels.size(); ++i) {
+        auto r = n.train(trainImages[i], trainLabelsClassified[i], .0001);
+        if (getGreatestLabel(r) == static_cast<int>(trainLabels[i]))
+            ++correctCounts;
+        if (i % 100 == 0) {
+            std::cout << "<acc: " << (correctCounts / 100.) << "> ";
+            std::cout << "<" << trainLabels[i] << "> ";    
+            printValarray(r, "train"s + std::to_string(i));
+            correctCounts = 0;
+        }
+    }
+    if (std::ofstream ofs{"mnist-network-v1.dat", std::ios::binary}) {
+        ofs << n;
+        std::cout << "the trained network is saved." << "\r\n";
+    }
 
 }
