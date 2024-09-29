@@ -27,13 +27,13 @@ int main() {
     std::for_each(std::begin(testImages), std::end(testImages), [](std::valarray<double>& v){
         v /= 255;
     });
-    decltype(trainLabelsClassified) trimmedTrainLabelsClassified = trainLabelsClassified[std::slice(29000, 2000, 1)];
-    decltype(trainImages) trimmedTrainImages = trainImages[std::slice(29000, 2000, 1)];
+    decltype(trainLabelsClassified) trimmedTrainLabelsClassified = trainLabelsClassified[std::slice(9000, 4000, 1)];
+    decltype(trainImages) trimmedTrainImages = trainImages[std::slice(9000, 4000, 1)];
     decltype(testImages) trimmedTestImages = testImages[std::slice(1200, 200, 1)];
     decltype(testLabels) trimmedTestLabels = testLabels[std::slice(1200, 200, 1)];
 
-    size_t batchSize = 10;
-    for (ssize_t e = 0; e < 200; ++e) {
+    size_t batchSize = 20;
+    for (ssize_t e = 0; e < 400; ++e) {
         std::cout << "epoch " << e << "\r\n";
         std::vector<size_t> indices = generateShuffledIndices(trimmedTrainLabelsClassified.size());
         auto shuffledLabelsClassified = reorder(trimmedTrainLabelsClassified, indices);
@@ -41,7 +41,7 @@ int main() {
         auto batchedLabesClassified = batch(shuffledLabelsClassified, batchSize);
         auto batchedImages = batch(shuffledImages, batchSize);
         for (ssize_t b = 0; b < batchedLabesClassified.size(); ++b) {
-            n.batchedTrain(batchedImages[b], batchedLabesClassified[b], 0.001*batchSize);
+            n.batchedTrain(batchedImages[b], batchedLabesClassified[b], 0.0001*batchSize);
             std::cout << ".";
         }
         std::cout << "\r\n" << "all batched data is trained" << "\r\n";

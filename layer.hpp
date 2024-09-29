@@ -114,7 +114,7 @@ public:
         for (ssize_t h = 0; h < batchedValues.size(); ++h) {
             for (ssize_t i = 0; i < this->values.size(); ++i) {
                 for (ssize_t j = 0; j < nextLayer.values.size(); ++j) {
-                    this->weights[i][j] -= learningRate * nextLayer.deltas[j] * batchedValues[h][i] / batchedValues.size();
+                    this->weights[i][j] -= learningRate * nextLayer.deltas[j] * batchedValues[h][i];
                 }
             }
         }
