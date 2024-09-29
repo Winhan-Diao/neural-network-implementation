@@ -94,9 +94,37 @@ public:
             }
         }
     }
-    void backward(const std::valarray<double>& actual, double learningRate) {
+    void outputBackward(const std::valarray<double>& actual, double learningRate) {
         assert(actual.size() == values.size());      //assertion
         this->deltas = activationFunction->derivative(this->values, (*lossFunction)(actual, this->values));
+        this->biases -= learningRate * this->deltas;
+    }
+    void batchedBackward(const std::valarray<std::valarray<double>>& batchedValues, const Layer& nextLayer, double learningRate) {
+        std::valarray<double> upstreamGradients(this->deltas.size());
+        for (ssize_t i = 0; i < this->values.size(); ++i) {
+            for (ssize_t j = 0; j < nextLayer.values.size(); ++j) {
+                upstreamGradients[i] += nextLayer.deltas[j] * this->weights[i][j];
+            }
+        }
+        this->deltas = 0;
+        for (ssize_t i = 0; i < batchedValues.size(); ++i) {
+            this->deltas += activationFunction->derivative(batchedValues[i], upstreamGradients) / batchedValues.size();
+        }
+        this->biases -= learningRate * this->deltas;
+        for (ssize_t h = 0; h < batchedValues.size(); ++h) {
+            for (ssize_t i = 0; i < this->values.size(); ++i) {
+                for (ssize_t j = 0; j < nextLayer.values.size(); ++j) {
+                    this->weights[i][j] -= learningRate * nextLayer.deltas[j] * batchedValues[h][i] / batchedValues.size();
+                }
+            }
+        }
+    }
+    void batchedOutputBackward(const std::valarray<std::valarray<double>>& batchedPredicted, const std::valarray<std::valarray<double>>& batchedActual, double learningRate) {
+        assert(batchedPredicted.size() == batchedActual.size());
+        this->deltas = 0;
+        for (ssize_t i = 0; i < batchedPredicted.size(); ++i) {
+            this->deltas += activationFunction->derivative(batchedPredicted[i], (*lossFunction)(batchedActual[i], batchedPredicted[i])) / batchedPredicted.size();
+        }
         this->biases -= learningRate * this->deltas;
     }
     ssize_t getLayerSize() const {

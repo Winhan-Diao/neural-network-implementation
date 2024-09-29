@@ -5,6 +5,7 @@
             "label": "C/C++: g++.exe build active file",
             "command": "D:\\Develop\\mingw64\\bin\\g++.exe",
             "args": [
+                "-O3",
                 "-fdiagnostics-color=always",
                 "-g",
                 "${file}",

@@ -3,11 +3,12 @@
 #include "mnist.hpp"
 #include "activation_functions.hpp"
 #include "loss_functions.hpp"
+#include "utils.hpp"
 
 using namespace std::literals;
 
 int main() {
-    Network n(28*28, 10, std::vector{120, 84, 10}, std::vector{ActivationFunctions::PRRELU, ActivationFunctions::PRRELU, ActivationFunctions::PRRELU}, ActivationFunctions::SOFTMAX, LossFunctions::CROSS_ENTROPY_LOSS);
+    Network n(28*28, 10, std::vector{124}, std::vector{ActivationFunctions::PRRELU}, ActivationFunctions::SOFTMAX, LossFunctions::CROSS_ENTROPY_LOSS);
     if (std::ifstream ifs{"mnist-network-v1.dat", std::ios::binary}) {
         std::cout << "train on an existing network" << "\r\n";
         ifs >> n;
@@ -20,37 +21,40 @@ int main() {
     std::for_each(std::begin(trainImages), std::end(trainImages), [](std::valarray<double>& v){
         v /= 255;
     });
-    std::vector<ssize_t> indices(static_cast<size_t>(trainLabels.size()));
-    std::iota(indices.begin() + 1, indices.end(), 1);
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::shuffle(indices.begin(), indices.end(), gen);
-    int correctCounts = 0;
-    for (int i = 0; i < trainLabels.size(); ++i) {
-        auto r = n.train(trainImages[indices[i]], trainLabelsClassified[indices[i]], .001);
-        if (getGreatestLabel(r) == static_cast<int>(trainLabels[indices[i]]))
-            ++correctCounts;
-        if (i % 1000 == 0) {
-            std::cout << "<acc: " << (correctCounts / 1000.) << "> ";
-            std::cout << "<" << trainLabels[indices[i]] << "> ";    
-            printValarray(r, "train"s + std::to_string(i));
-            correctCounts = 0;
-        }
-    }
-    if (std::ofstream ofs{"mnist-network-v1.dat", std::ios::binary}) {
-        ofs << n;
-        std::cout << "the trained network is saved." << "\r\n";
-    }
-
     std::valarray<double> testLabels{loadLabels("t10k-labels.idx1-ubyte"s)};
     std::valarray<std::valarray<double>> testLabelsClassified{classifyLabels(testLabels)};
     std::valarray<std::valarray<double>> testImages{loadImages("t10k-images.idx3-ubyte"s)};
     std::for_each(std::begin(testImages), std::end(testImages), [](std::valarray<double>& v){
         v /= 255;
     });
-    std::cout << "result of test data: " << n.test(testImages, testLabels, [](const std::valarray<double>& predicted, const decltype(testLabels[0])& actual){
-        return getGreatestLabel(predicted) == actual;
-    }) << "\r\n";
+    decltype(trainLabelsClassified) trimmedTrainLabelsClassified = trainLabelsClassified[std::slice(29000, 2000, 1)];
+    decltype(trainImages) trimmedTrainImages = trainImages[std::slice(29000, 2000, 1)];
+    decltype(testImages) trimmedTestImages = testImages[std::slice(1200, 200, 1)];
+    decltype(testLabels) trimmedTestLabels = testLabels[std::slice(1200, 200, 1)];
+
+    size_t batchSize = 10;
+    for (ssize_t e = 0; e < 200; ++e) {
+        std::cout << "epoch " << e << "\r\n";
+        std::vector<size_t> indices = generateShuffledIndices(trimmedTrainLabelsClassified.size());
+        auto shuffledLabelsClassified = reorder(trimmedTrainLabelsClassified, indices);
+        auto shuffledImages = reorder(trimmedTrainImages, indices);
+        auto batchedLabesClassified = batch(shuffledLabelsClassified, batchSize);
+        auto batchedImages = batch(shuffledImages, batchSize);
+        for (ssize_t b = 0; b < batchedLabesClassified.size(); ++b) {
+            n.batchedTrain(batchedImages[b], batchedLabesClassified[b], 0.001*batchSize);
+            std::cout << ".";
+        }
+        std::cout << "\r\n" << "all batched data is trained" << "\r\n";
+        std::cout << "result of test data: " << n.test(trimmedTestImages, trimmedTestLabels, [](const std::valarray<double>& predicted, const decltype(testLabels[0])& actual){
+                return getGreatestLabel(predicted) == actual;
+        }) << "\r\n";
+    }
+
+    if (std::ofstream ofs{"mnist-network-v1.dat", std::ios::binary}) {
+        ofs << n;
+        std::cout << "the trained network is saved." << "\r\n";
+    }
+
 }
 
 void archived1() {
@@ -260,4 +264,96 @@ void mnist2() {
         std::cout << "the trained network is saved." << "\r\n";
     }
 
+}
+
+void mnist3() {
+    Network n(28*28, 10, std::vector{120, 84, 10}, std::vector{ActivationFunctions::PRRELU, ActivationFunctions::PRRELU, ActivationFunctions::PRRELU}, ActivationFunctions::SOFTMAX, LossFunctions::CROSS_ENTROPY_LOSS);
+    if (std::ifstream ifs{"mnist-network-v1.dat", std::ios::binary}) {
+        std::cout << "train on an existing network" << "\r\n";
+        ifs >> n;
+    } else {
+        std::cout << "new network" << "\r\n";
+    }
+    std::valarray<double> trainLabels{loadLabels("train-labels.idx1-ubyte"s)};
+    std::valarray<std::valarray<double>> trainLabelsClassified{classifyLabels(trainLabels)};
+    std::valarray<std::valarray<double>> trainImages{loadImages("train-images.idx3-ubyte"s)};
+    std::for_each(std::begin(trainImages), std::end(trainImages), [](std::valarray<double>& v){
+        v /= 255;
+    });
+    std::vector<ssize_t> indices(static_cast<size_t>(trainLabels.size()));
+    std::iota(indices.begin() + 1, indices.end(), 1);
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::shuffle(indices.begin(), indices.end(), gen);
+    int correctCounts = 0;
+    for (int i = 0; i < trainLabels.size(); ++i) {
+        auto r = n.train(trainImages[indices[i]], trainLabelsClassified[indices[i]], .001);
+        if (getGreatestLabel(r) == static_cast<int>(trainLabels[indices[i]]))
+            ++correctCounts;
+        if (i % 1000 == 0) {
+            std::cout << "<acc: " << (correctCounts / 1000.) << "> ";
+            std::cout << "<" << trainLabels[indices[i]] << "> ";    
+            printValarray(r, "train"s + std::to_string(i));
+            correctCounts = 0;
+        }
+    }
+    if (std::ofstream ofs{"mnist-network-v1.dat", std::ios::binary}) {
+        ofs << n;
+        std::cout << "the trained network is saved." << "\r\n";
+    }
+
+    std::valarray<double> testLabels{loadLabels("t10k-labels.idx1-ubyte"s)};
+    std::valarray<std::valarray<double>> testLabelsClassified{classifyLabels(testLabels)};
+    std::valarray<std::valarray<double>> testImages{loadImages("t10k-images.idx3-ubyte"s)};
+    std::for_each(std::begin(testImages), std::end(testImages), [](std::valarray<double>& v){
+        v /= 255;
+    });
+    std::cout << "result of test data: " << n.test(testImages, testLabels, [](const std::valarray<double>& predicted, const decltype(testLabels[0])& actual){
+        return getGreatestLabel(predicted) == actual;
+    }) << "\r\n";
+}
+
+void mnist4() {
+    Network n(28*28, 10, std::vector{120, 84, 10}, std::vector{ActivationFunctions::PRRELU, ActivationFunctions::PRRELU, ActivationFunctions::PRRELU}, ActivationFunctions::SOFTMAX, LossFunctions::CROSS_ENTROPY_LOSS);
+    if (std::ifstream ifs{"mnist-network-v1.dat", std::ios::binary}) {
+        std::cout << "train on an existing network" << "\r\n";
+        ifs >> n;
+    } else {
+        std::cout << "new network" << "\r\n";
+    }
+    std::valarray<double> trainLabels{loadLabels("train-labels.idx1-ubyte"s)};
+    std::valarray<std::valarray<double>> trainLabelsClassified{classifyLabels(trainLabels)};
+    std::valarray<std::valarray<double>> trainImages{loadImages("train-images.idx3-ubyte"s)};
+    std::for_each(std::begin(trainImages), std::end(trainImages), [](std::valarray<double>& v){
+        v /= 255;
+    });
+    std::vector<ssize_t> indices(static_cast<size_t>(trainLabels.size()));
+    std::iota(indices.begin() + 1, indices.end(), 1);
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::shuffle(indices.begin(), indices.end(), gen);
+    int correctCounts = 0;
+    std::valarray<double> testLabels{loadLabels("t10k-labels.idx1-ubyte"s)};
+    std::valarray<std::valarray<double>> testLabelsClassified{classifyLabels(testLabels)};
+    std::valarray<std::valarray<double>> testImages{loadImages("t10k-images.idx3-ubyte"s)};
+    std::for_each(std::begin(testImages), std::end(testImages), [](std::valarray<double>& v){
+        v /= 255;
+    });
+    decltype(testImages) trimmedTestImages = testImages[std::slice(1200, 200, 1)];
+    decltype(testLabels) trimmedTestLabels = testLabels[std::slice(1200, 200, 1)];
+    for (int i = 1; i < trainLabels.size() - 2; i += 2) {
+        // for (int j = i; j < i + 80; ++j)
+        //     n.train(trainImages[i], trainLabelsClassified[i], 0.01);
+        n.batchedTrain(trainImages[std::slice(i, 2, 1)], trainLabelsClassified[std::slice(i, 2, 1)], 0.001);
+        if (i % 100 == 1) {
+            std::cout << "iteration: " << i << "\r\n";
+            std::cout << "result of test data: " << n.test(trimmedTestImages, trimmedTestLabels, [](const std::valarray<double>& predicted, const decltype(testLabels[0])& actual){
+                return getGreatestLabel(predicted) == actual;
+            }) << "\r\n";
+        }
+    }
+    if (std::ofstream ofs{"mnist-network-v1.dat", std::ios::binary}) {
+        ofs << n;
+        std::cout << "the trained network is saved." << "\r\n";
+    }
 }

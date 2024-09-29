@@ -90,12 +90,32 @@ public:
             hiddenLayers[i].forward((i == 0)? inputLayer: hiddenLayers.at(i - 1));
         }
         outputLayer.forward(hiddenLayers.back());
-        outputLayer.backward(output, learningRate);
+        outputLayer.outputBackward(output, learningRate);
         for (ssize_t i = hiddenLayers.size() - 1; i >= 0; --i) {
             hiddenLayers[i].backward((i == hiddenLayers.size() - 1)? outputLayer: hiddenLayers[i + 1], learningRate);
         }
         inputLayer.backward(hiddenLayers[0], learningRate);
         return outputLayer.values;
+    }
+    void batchedTrain(const std::valarray<std::valarray<double>>& batchedInput, const std::valarray<std::valarray<double>>& batchedOutput, double learningRate) {
+        assert(batchedInput.size() == batchedOutput.size());       //assertion
+        std::vector<std::valarray<std::valarray<double>>> batchedHiddenLayersValues(size_t(hiddenLayers.size()), std::valarray<std::valarray<double>>(size_t(batchedInput.size())));
+        std::valarray<std::valarray<double>> batchedOutputLayerValues(size_t(batchedInput.size()));
+        for (ssize_t i = 0; i < batchedInput.size(); ++i) {
+            inputLayer.values = batchedInput[i];
+            for (ssize_t j = 0; j < hiddenLayers.size(); ++j) {
+                hiddenLayers[j].forward((j == 0)? inputLayer: hiddenLayers.at(j - 1));
+                batchedHiddenLayersValues[j][i] = hiddenLayers[j].values;      //friend
+            }
+            outputLayer.forward(hiddenLayers.back());
+            batchedOutputLayerValues[i] = outputLayer.values;       //friend
+        }
+        outputLayer.batchedOutputBackward(batchedOutputLayerValues, batchedOutput, learningRate);
+        for (ssize_t i = hiddenLayers.size() - 1; i >= 0; --i) {
+            hiddenLayers[i].batchedBackward(batchedHiddenLayersValues[i], (i == hiddenLayers.size() - 1)? outputLayer: hiddenLayers[i + 1], learningRate);
+        }
+        inputLayer.batchedBackward(batchedInput, hiddenLayers[0], learningRate);
+        return;
     }
     std::valarray<double> run(const std::valarray<double>& input) {
         inputLayer.values = input;
