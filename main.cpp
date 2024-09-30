@@ -27,22 +27,26 @@ int main() {
     std::for_each(std::begin(testImages), std::end(testImages), [](std::valarray<double>& v){
         v /= 255;
     });
-    decltype(trainLabelsClassified) trimmedTrainLabelsClassified = trainLabelsClassified[std::slice(29000, 2000, 1)];
-    decltype(trainImages) trimmedTrainImages = trainImages[std::slice(29000, 2000, 1)];
-    decltype(testImages) trimmedTestImages = testImages[std::slice(1200, 200, 1)];
-    decltype(testLabels) trimmedTestLabels = testLabels[std::slice(1200, 200, 1)];
+    decltype(trainLabelsClassified) trimmedTrainLabelsClassified = trainLabelsClassified[std::slice(13000, 20000, 1)];
+    decltype(trainImages) trimmedTrainImages = trainImages[std::slice(13000, 20000, 1)];
+    decltype(testImages) trimmedTestImages = testImages[std::slice(1200, 300, 1)];
+    decltype(testLabels) trimmedTestLabels = testLabels[std::slice(1200, 300, 1)];
 
-    size_t batchSize = 10;
-    for (ssize_t e = 0; e < 200; ++e) {
+    size_t batchSize = 1;
+    for (ssize_t e = 0; e < 20; ++e) {
         std::cout << "epoch " << e << "\r\n";
         std::vector<size_t> indices = generateShuffledIndices(trimmedTrainLabelsClassified.size());
         auto shuffledLabelsClassified = reorder(trimmedTrainLabelsClassified, indices);
         auto shuffledImages = reorder(trimmedTrainImages, indices);
         auto batchedLabesClassified = batch(shuffledLabelsClassified, batchSize);
         auto batchedImages = batch(shuffledImages, batchSize);
+        ssize_t p = 0;
         for (ssize_t b = 0; b < batchedLabesClassified.size(); ++b) {
-            n.batchedTrain(batchedImages[b], batchedLabesClassified[b], 0.001*batchSize);
-            std::cout << ".";
+            n.batchedTrain(batchedImages[b], batchedLabesClassified[b], 0.0001*batchSize);
+            if (b * batchSize > p) {
+                std::cout << ".";
+                p += indices.size() / 10;
+            }
         }
         std::cout << "\r\n" << "all batched data is trained" << "\r\n";
         std::cout << "result of test data: " << n.test(trimmedTestImages, trimmedTestLabels, [](const std::valarray<double>& predicted, const decltype(testLabels[0])& actual){

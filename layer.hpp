@@ -25,7 +25,7 @@ class Layer {
     std::unique_ptr<LossFunction> lossFunction;
     std::valarray<double> momentumBiases;
     std::valarray<std::valarray<double>> momentumWeights;
-    static const double smoothingFactor = .1;
+    static constexpr const double smoothingFactor = .1;
 public:
     template <class T1 = decltype(std::normal_distribution(0., .7)), class T2 = decltype(std::normal_distribution(0., .001))>
     Layer(ssize_t nodeCounts
@@ -68,11 +68,13 @@ public:
         values(weights.size()),
         deltas(weights.size()),
         activationFunctionEnum(activationFunctionEnum),
-        activationFunction(ActivationFunction::buildActivationFunction(activationFunctionEnum)),
         lossFunctionEnum(lossFunctionEnum),
-        lossFunction(LossFunction::buildLossFunction(lossFunctionEnum)),
         layerSize(weights.size()),
-        nextLayerSize(weights.size()? weights[0].size(): 0)
+        nextLayerSize(weights.size()? weights[0].size(): 0),
+        activationFunction(ActivationFunction::buildActivationFunction(activationFunctionEnum)),
+        lossFunction(LossFunction::buildLossFunction(lossFunctionEnum)),
+        momentumBiases(biases.size()),
+        momentumWeights(std::valarray<double>(nextLayerSize), weights.size())
     {}
     Layer() = default;
     void forward(const Layer& prevLayer) {
@@ -120,12 +122,14 @@ public:
         }
         momentumBiases = (1 - smoothingFactor) * momentumBiases + smoothingFactor * this->deltas;
         this->biases -= learningRate * this->momentumBiases;
-        for (ssize_t h = 0; h < batchedValues.size(); ++h) {
-            for (ssize_t i = 0; i < this->values.size(); ++i) {
-                for (ssize_t j = 0; j < nextLayer.values.size(); ++j) {
-                    momentumWeights[i][j] = (1 - smoothingFactor) * momentumWeights[i][j] + smoothingFactor * nextLayer.deltas[j] * this->values[i]; 
-                    this->weights[i][j] -= learningRate * nextLayer.deltas[j] * batchedValues[h][i] / batchedValues.size();
+        
+        for (ssize_t i = 0; i < this->values.size(); ++i) {
+            for (ssize_t j = 0; j < nextLayer.values.size(); ++j) {
+                momentumWeights[i][j] *= 1 - smoothingFactor;
+                for (ssize_t h = 0; h < batchedValues.size(); ++h) {
+                    momentumWeights[i][j] += smoothingFactor * nextLayer.deltas[j] * batchedValues[h][i]; 
                 }
+                this->weights[i][j] -= learningRate * momentumWeights[i][j];
             }
         }
     }
@@ -135,7 +139,8 @@ public:
         for (ssize_t i = 0; i < batchedPredicted.size(); ++i) {
             this->deltas += activationFunction->derivative(batchedPredicted[i], (*lossFunction)(batchedActual[i], batchedPredicted[i])) / batchedPredicted.size();
         }
-        this->biases -= learningRate * this->deltas;
+        momentumBiases = (1 - smoothingFactor) * momentumBiases + smoothingFactor * this->deltas;
+        this->biases -= learningRate * momentumBiases;
     }
     ssize_t getLayerSize() const {
         return layerSize;
