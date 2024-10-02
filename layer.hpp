@@ -25,7 +25,11 @@ class Layer {
     std::unique_ptr<LossFunction> lossFunction;
     std::valarray<double> momentumBiases;
     std::valarray<std::valarray<double>> momentumWeights;
-    static constexpr const double smoothingFactor = .1;
+    std::valarray<double> rmspropBiases;
+    std::valarray<std::valarray<double>> rmspropWeights;
+    static constexpr const double smoothingFactor = .01;
+    static constexpr const double smallCorrection = .001;
+    static constexpr const double decayFactor = .001;
 public:
     template <class T1 = decltype(std::normal_distribution(0., .7)), class T2 = decltype(std::normal_distribution(0., .001))>
     Layer(ssize_t nodeCounts
@@ -47,7 +51,9 @@ public:
         activationFunction(ActivationFunction::buildActivationFunction(activationFunctionEnum)), 
         lossFunction(LossFunction::buildLossFunction(lossFunctionEnum)),
         momentumBiases(nodeCounts),
-        momentumWeights(std::valarray<double>(nextLayerNodeCounts), nodeCounts)
+        momentumWeights(std::valarray<double>(nextLayerNodeCounts), nodeCounts),
+        rmspropBiases(nodeCounts),
+        rmspropWeights(std::valarray<double>(nextLayerNodeCounts), nodeCounts)
     {
         for (ssize_t i = 0; i < biases.size(); ++i) {
             biases[i] = biaseDistribution(gen);
@@ -74,7 +80,9 @@ public:
         activationFunction(ActivationFunction::buildActivationFunction(activationFunctionEnum)),
         lossFunction(LossFunction::buildLossFunction(lossFunctionEnum)),
         momentumBiases(biases.size()),
-        momentumWeights(std::valarray<double>(nextLayerSize), weights.size())
+        momentumWeights(std::valarray<double>(nextLayerSize), weights.size()),
+        rmspropBiases(biases.size()),
+        rmspropWeights(std::valarray<double>(nextLayerSize), weights.size())
     {}
     Layer() = default;
     void forward(const Layer& prevLayer) {
@@ -95,11 +103,13 @@ public:
         }
         this->deltas = activationFunction->derivative(this->values, upstreamGradients);
         momentumBiases = (1 - smoothingFactor) * momentumBiases + smoothingFactor * this->deltas;
-        this->biases -= learningRate * this->momentumBiases;
+        rmspropBiases = (1 - smoothingFactor) * rmspropBiases + smoothingFactor * std::pow(this->deltas, 2.);
+        this->biases -= learningRate * this->momentumBiases / (std::sqrt(rmspropBiases) + smallCorrection);
         for (ssize_t i = 0; i < this->values.size(); ++i) {
             for (ssize_t j = 0; j < nextLayer.values.size(); ++j) {
                 momentumWeights[i][j] = (1 - smoothingFactor) * momentumWeights[i][j] + smoothingFactor * nextLayer.deltas[j] * this->values[i]; 
-                this->weights[i][j] -= learningRate * momentumWeights[i][j];
+                rmspropWeights[i][j] = (1 - smoothingFactor) * rmspropWeights[i][j] + smoothingFactor * std::pow(nextLayer.deltas[j] * this->values[i], 2.); 
+                this->weights[i][j] -= learningRate * momentumWeights[i][j] / (std::sqrt(rmspropWeights[i][j]) + smallCorrection) - learningRate * this->weights[i][j] * decayFactor;
             }
         }
     }
@@ -107,7 +117,8 @@ public:
         assert(actual.size() == values.size());      //assertion
         this->deltas = activationFunction->derivative(this->values, (*lossFunction)(actual, this->values));
         momentumBiases = (1 - smoothingFactor) * momentumBiases + smoothingFactor * this->deltas;
-        this->biases -= learningRate * this->momentumBiases;
+        rmspropBiases = (1 - smoothingFactor) * rmspropBiases + smoothingFactor * std::pow(this->deltas, 2.);
+        this->biases -= learningRate * this->momentumBiases / (std::sqrt(rmspropBiases) + smallCorrection) - learningRate * this->biases * decayFactor;
     }
     void batchedBackward(const std::valarray<std::valarray<double>>& batchedValues, const Layer& nextLayer, double learningRate) {
         std::valarray<double> upstreamGradients(this->deltas.size());
@@ -118,18 +129,25 @@ public:
         }
         this->deltas = 0;
         for (ssize_t i = 0; i < batchedValues.size(); ++i) {
-            this->deltas += activationFunction->derivative(batchedValues[i], upstreamGradients) / batchedValues.size();
+            this->deltas += activationFunction->derivative(batchedValues[i], upstreamGradients);
         }
+        this->deltas /= batchedValues.size();
+
         momentumBiases = (1 - smoothingFactor) * momentumBiases + smoothingFactor * this->deltas;
-        this->biases -= learningRate * this->momentumBiases;
+        rmspropBiases = (1 - smoothingFactor) * rmspropBiases + smoothingFactor * std::pow(this->deltas, 2.);
+        this->biases -= learningRate * this->momentumBiases / (std::sqrt(rmspropBiases) + smallCorrection) - learningRate * this->biases * decayFactor;
         
         for (ssize_t i = 0; i < this->values.size(); ++i) {
             for (ssize_t j = 0; j < nextLayer.values.size(); ++j) {
                 momentumWeights[i][j] *= 1 - smoothingFactor;
+                rmspropWeights[i][j] *= 1 - smoothingFactor;
+                double deltaWeightGrad = 0;
                 for (ssize_t h = 0; h < batchedValues.size(); ++h) {
-                    momentumWeights[i][j] += smoothingFactor * nextLayer.deltas[j] * batchedValues[h][i]; 
+                    deltaWeightGrad += nextLayer.deltas[j] * batchedValues[h][i]; 
                 }
-                this->weights[i][j] -= learningRate * momentumWeights[i][j];
+                momentumWeights[i][j] += smoothingFactor * deltaWeightGrad;
+                rmspropWeights[i][j] += smoothingFactor * std::pow(deltaWeightGrad, 2.);
+                this->weights[i][j] -= learningRate * momentumWeights[i][j] / (std::sqrt(rmspropWeights[i][j]) + smallCorrection) - learningRate * this->weights[i][j] * decayFactor;
             }
         }
     }
@@ -137,10 +155,13 @@ public:
         assert(batchedPredicted.size() == batchedActual.size());
         this->deltas = 0;
         for (ssize_t i = 0; i < batchedPredicted.size(); ++i) {
-            this->deltas += activationFunction->derivative(batchedPredicted[i], (*lossFunction)(batchedActual[i], batchedPredicted[i])) / batchedPredicted.size();
+            this->deltas += activationFunction->derivative(batchedPredicted[i], (*lossFunction)(batchedActual[i], batchedPredicted[i]));
         }
+        this->deltas /= batchedPredicted.size();
+        
         momentumBiases = (1 - smoothingFactor) * momentumBiases + smoothingFactor * this->deltas;
-        this->biases -= learningRate * momentumBiases;
+        rmspropBiases = (1 - smoothingFactor) * rmspropBiases + smoothingFactor * std::pow(this->deltas, 2.);
+        this->biases -= learningRate * this->momentumBiases / (std::sqrt(rmspropBiases) + smallCorrection) - learningRate * this->biases * decayFactor;
     }
     ssize_t getLayerSize() const {
         return layerSize;
