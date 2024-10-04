@@ -95,10 +95,9 @@ struct Softmax: ActivationFunction {
     }
     std::valarray<double> derivative(const std::valarray<double>& y, const std::valarray<double>& usGrad) override {
         double sum = (y * usGrad).sum();
-        return y * (sum - usGrad);
+        return -y * (sum - usGrad);
     }
 };
-
 
 std::unique_ptr<ActivationFunction> ActivationFunction::buildActivationFunction(const ActivationFunctions& n) {
     switch (n) {

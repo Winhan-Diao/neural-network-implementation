@@ -13,7 +13,7 @@ struct LossFunction {
 
 struct MSE: LossFunction {
     std::valarray<double> operator() (const std::valarray<double>& actual, const std::valarray<double>& predicted) override {
-        return actual - predicted;
+        return predicted - actual;
     }
 };
 
@@ -21,7 +21,7 @@ struct CrossEntropyLoss: LossFunction {
     std::valarray<double> operator() (const std::valarray<double>& actual, const std::valarray<double>& predicted) override {
         std::valarray<double> loss(actual.size());
         for (ssize_t i = 0; i < actual.size(); ++i) {
-            loss[i] = (actual[i] == 0)? (1. / (predicted[i] - 1.)): (1. / predicted[i]);  
+            loss[i] = (actual[i] == 0)? (-1. / (predicted[i] - 1.)): (-1. / predicted[i]);  
         }
         return loss;
     }
