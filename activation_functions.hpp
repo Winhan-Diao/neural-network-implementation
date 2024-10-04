@@ -20,7 +20,7 @@ struct ActivationFunction {
 
 struct Sigmoid: ActivationFunction {
     std::valarray<double> operator() (const std::valarray<double>& x) override {
-        return 1 / (1 + std::exp(x));
+        return 1 / (1 + std::exp(-x));
     }
     std::valarray<double> derivative(const std::valarray<double>& y, const std::valarray<double>& usGrad) override {
         return y * (1 - y) * usGrad;
