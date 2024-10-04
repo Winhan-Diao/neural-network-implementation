@@ -31,12 +31,9 @@ class Layer {
     static constexpr const double smallCorrection = .001;
     static constexpr const double decayFactor = .001;
 public:
-    template <class T1 = decltype(std::normal_distribution(0., .7)), class T2 = decltype(std::normal_distribution(0., .001))>
     Layer(ssize_t nodeCounts
             , ssize_t nextLayerNodeCounts = 0
             , std::mt19937 gen = std::mt19937(std::random_device()())
-            , T1&& weightDistribution = std::normal_distribution(0., .7)
-            , T2&& biaseDistribution = std::normal_distribution(0., .001)
             , const ActivationFunctions& activationFunctionEnum = ActivationFunctions::SIGMOID
             , const LossFunctions& lossFunctionEnum = LossFunctions::MSE
         ): 
@@ -56,11 +53,14 @@ public:
         rmspropWeights(std::valarray<double>(nextLayerNodeCounts), nodeCounts)
     {
         for (ssize_t i = 0; i < biases.size(); ++i) {
-            biases[i] = biaseDistribution(gen);
+            biases[i] = std::normal_distribution(0., .001)(gen);
         }
         for (ssize_t i = 0; i < weights.size(); ++i) {
             for (ssize_t j = 0; j < (weights.size()? weights[0].size(): 0); ++j) {
-                weights[i][j] = weightDistribution(gen);
+                if (activationFunctionEnum == ActivationFunctions::SIGMOID || activationFunctionEnum == ActivationFunctions::TANH)
+                    weights[i][j] = std::normal_distribution(0., std::sqrt(2. / (nodeCounts + nextLayerNodeCounts)))(gen);
+                else
+                    weights[i][j] = std::normal_distribution(0., std::sqrt(2. / nodeCounts))(gen);
             }
         }
     }

@@ -44,15 +44,11 @@ public:
         inputLayer(inputLayerNodeCounts
                     , (hiddenLayersNodeCounts.size() == 0)? outputLayerNodeCounts: hiddenLayersNodeCounts.at(0)
                     , std::mt19937(std::random_device()())
-                    , std::normal_distribution(0., sqrt(2. / (inputLayerNodeCounts + outputLayerNodeCounts)))
-                    , std::normal_distribution(0., .001)
                 ),
         hiddenLayers(),
         outputLayer(outputLayerNodeCounts
                         , 0
                         , std::mt19937(std::random_device()())
-                        , std::normal_distribution(0., sqrt(2. / (inputLayerNodeCounts + outputLayerNodeCounts)))
-                        , std::normal_distribution(0., .001)
                         , outputLayerActivationFunctionEnum
                         , outputLayerLossFunctionEnum
                     )
@@ -62,8 +58,6 @@ public:
             hiddenLayers.emplace_back(hiddenLayersNodeCounts.at(i)
                                         , (i + 1 < hiddenLayersNodeCounts.size())? hiddenLayersNodeCounts.at(i): outputLayerNodeCounts
                                         , std::mt19937(std::random_device()())
-                                        , std::normal_distribution(0., sqrt(2. / (inputLayerNodeCounts + outputLayerNodeCounts)))
-                                        , std::normal_distribution(0., .001)
                                         , hiddenLayersActivationFunctionEnum.size()? hiddenLayersActivationFunctionEnum[i]: ActivationFunctions::LEAKYRELU
                                     );
         }
