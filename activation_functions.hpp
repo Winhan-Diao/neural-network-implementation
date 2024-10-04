@@ -5,6 +5,7 @@
 enum class ActivationFunctions {
     INVALID,
     SIGMOID,
+    TANH,
     RELU,
     LEAKYRELU,
     PRRELU,
@@ -23,6 +24,15 @@ struct Sigmoid: ActivationFunction {
     }
     std::valarray<double> derivative(const std::valarray<double>& y, const std::valarray<double>& usGrad) override {
         return y * (1 - y) * usGrad;
+    }
+};
+
+struct Tanh: ActivationFunction {
+    std::valarray<double> operator() (const std::valarray<double>& x) override {
+        return std::tanh(x);
+    }
+    std::valarray<double> derivative(const std::valarray<double>& y, const std::valarray<double>& usGrad) override {
+        return (1 - y * y) * usGrad;
     }
 };
 
@@ -94,6 +104,8 @@ std::unique_ptr<ActivationFunction> ActivationFunction::buildActivationFunction(
     switch (n) {
         case ActivationFunctions::SIGMOID:
             return std::make_unique<Sigmoid>();
+        case ActivationFunctions::TANH:
+            return std::make_unique<Tanh>();
         case ActivationFunctions::RELU:
             return std::make_unique<Relu>();
         case ActivationFunctions::LEAKYRELU:
