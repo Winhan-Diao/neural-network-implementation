@@ -33,12 +33,12 @@ class Layer {
 public:
     Layer(ssize_t nodeCounts
             , ssize_t nextLayerNodeCounts = 0
-            , std::mt19937 gen = std::mt19937(std::random_device()())
             , const ActivationFunctions& activationFunctionEnum = ActivationFunctions::SIGMOID
             , const LossFunctions& lossFunctionEnum = LossFunctions::MSE
+            , std::mt19937 gen = std::mt19937(std::random_device()())
         ): 
         biases(nodeCounts), 
-        weights(std::valarray<double>(nextLayerNodeCounts), nodeCounts),     //bad perf 
+        weights(std::valarray<double>(nextLayerNodeCounts), nodeCounts),
         values(nodeCounts), 
         deltas(nodeCounts),
         activationFunctionEnum(activationFunctionEnum),
@@ -53,7 +53,7 @@ public:
         rmspropWeights(std::valarray<double>(nextLayerNodeCounts), nodeCounts)
     {
         for (ssize_t i = 0; i < biases.size(); ++i) {
-            biases[i] = std::normal_distribution(0., .001)(gen);
+            biases[i] = std::normal_distribution(0., .7)(gen);
         }
         for (ssize_t i = 0; i < weights.size(); ++i) {
             for (ssize_t j = 0; j < (weights.size()? weights[0].size(): 0); ++j) {
