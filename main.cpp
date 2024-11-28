@@ -10,7 +10,7 @@
 using namespace std::literals;
 
 int main() {
-    // _controlfp_s(NULL, 0, _EM_INVALID | _EM_ZERODIVIDE | _EM_OVERFLOW);
+    _controlfp_s(NULL, 0, _EM_INVALID | _EM_ZERODIVIDE | _EM_OVERFLOW /* | _EM_UNDERFLOW */);
     mnist();
 }
 

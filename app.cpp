@@ -24,7 +24,7 @@ MainPanel::MainPanel(wxWindow *parent): wxPanel(parent) {
     buttonLoad->SetPosition(this->FromDIP(wxPoint(300, 30)));
     buttonLoad->SetSize(this->FromDIP(wxSize(200, 80))); 
     buttonLoad->Bind(wxEVT_BUTTON, [this](const wxCommandEvent&) {
-        if (std::ifstream ifs{"mnist-network-v1.dat", std::ios::binary}) {
+        if (std::ifstream ifs{"mnist-network-sgnexp-v1.dat", std::ios::binary}) {
             std::cout << "Network Loaded" << "\r\n";
             ifs >> this->n;
             this->networkValid = true;

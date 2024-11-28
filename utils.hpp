@@ -7,6 +7,20 @@
 #include <cassert>
 #include "network.hpp"
 
+template <template <typename> typename T, typename V,  class U = decltype("valarr"s)>
+static void printValarray(const T<V>& valarr, U&& name = "valarr"s) {
+    std::cout << name << ": {"s;
+    std::for_each(std::cbegin(valarr), std::cend(valarr), [&valarr](const auto& a){
+        if constexpr (is_valarray<V>::value) {
+            printValarray(a, "innerVArr"s);
+        } else {
+            std::cout << a;
+        }
+        std::cout << ((&a == std::cend(valarr) - 1)? ""s : ", "s);
+    });
+    std::cout << "}"s << "\r\n"s;
+}
+
 std::vector<size_t> generateShuffledIndices(size_t size) {
     std::vector<size_t> indices(size_t(size), size_t(0));
     std::iota(std::min(indices.begin() + 1, indices.end()), indices.end(), 1);
@@ -47,7 +61,7 @@ std::valarray<std::valarray<T>> batch(const std::valarray<T>& origin, size_t bat
 }
 
 template <class T1, class T2, class _BiPred>
-void train(Network& n, const std::valarray<std::valarray<double>>& trainInputs, const std::valarray<T1>& trainOutputs, double learningRate, size_t epoch, size_t batchSize, const std::valarray<std::valarray<double>>& testInputs, const std::valarray<T2>& testOutputs, _BiPred&& testBiPred) {
+void train(Network& n, const std::valarray<std::valarray<double>>& trainInputs, const std::valarray<T1>& trainOutputs, double learningRate, size_t epoch, size_t batchSize, const std::valarray<std::valarray<double>>& testInputs, const std::valarray<T2>& testOutputs, _BiPred&& testBiPred, size_t threadCounts = 1) {
     assert(trainInputs.size() == trainOutputs.size());       //assertion
     for (size_t e = 0; e < epoch; ++e) {
         std::cout << "epoch " << e << "\r\n";
@@ -59,7 +73,7 @@ void train(Network& n, const std::valarray<std::valarray<double>>& trainInputs, 
         size_t p = 0;
         std::cout << "training";
         for (size_t b = 0; b < batchedInputs.size(); ++b) {
-            n.batchedTrain(batchedInputs[b], batchedOutputs[b], learningRate * batchSize);
+            n.batchedTrain(batchedInputs[b], batchedOutputs[b], learningRate * batchSize, threadCounts);
             if (b * batchSize > p) {
                 std::cout << '.';
                 p += indices.size() / 20;

@@ -65,7 +65,7 @@ std::valarray<std::valarray<double>> classifyLabels(const std::valarray<double>&
     return neo;
 }
 
-int getGreatestLabel(const std::valarray<double>& labels) {
+std::ptrdiff_t getGreatestLabel(const std::valarray<double>& labels) {
     return std::distance(std::cbegin(labels), std::max_element(std::cbegin(labels), std::cend(labels)));
 }
 
@@ -77,3 +77,20 @@ void printImage(const std::valarray<double>& image) {
         std::cout << "\r\n";
     }
 }
+
+// template <class RandomGenerator>
+// std::valarray<double> randomOffset(std::valarray<double>& image, RandomGenerator&& gen, double stdDerivation = 1) {
+//     int offsetX = std::normal_distribution(0, stdDerivation)(gen);
+//     int offsetY = std::normal_distribution(0, stdDerivation)(gen);
+//     if (offsetX < 0) {
+//         if (std::all_of(std::cbegin(image), std::cbegin(image) + offsetX * 28, [](const auto& v){ return v == 0; }))
+        
+//     } else if (offsetX > 0) {
+
+//     }
+//     if (offsetY < 0) {
+
+//     } else if (offsetY > 0) {
+
+//     }
+// }

@@ -4,13 +4,33 @@
             "type": "cppbuild",
             "label": "C/C++: g++.exe build active file",
             "command": "D:\\Develop\\mingw64\\bin\\g++.exe",
+            // "command": "C:\\Program Files\\CodeBlocks\\MinGW\\bin\\g++.exe",
             "args": [
+                "-std=c++2a",
                 "-O3",
                 "-fdiagnostics-color=always",
                 "-g",
                 "${file}",
                 "-o",
-                "${fileDirname}\\${fileBasenameNoExtension}.exe"
+                "${fileDirname}\\${fileBasenameNoExtension}.exe",
+
+                // "-O3",
+                // "-fdiagnostics-color=always",
+                // "-I", "${env:wxwin}\\include",
+                // "-I", "${env:wxwin}\\lib\\gcc_dll\\mswu",
+                // "-L", "${env:wxwin}\\lib\\gcc_dll",
+                // "-L./libs",
+                // "-D__WXMSW__",
+                // "-D_UNICODE",
+                // "-DWXUSINGDLL",
+                // "-g",
+                // "app.cpp",
+                // "-o",
+                // "${fileDirname}\\app.exe",
+                // "-lwxmsw32u",
+                // "-lwxmsw32u_gl",
+                // "-mwindows",
+
             ],
             "options": {
                 "cwd": "${fileDirname}"

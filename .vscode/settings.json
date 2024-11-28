@@ -71,6 +71,7 @@
         "stop_token": "cpp",
         "thread": "cpp",
         "fstream": "cpp",
-        "strstream": "cpp"
+        "strstream": "cpp",
+        "hash_map": "cpp"
     }
 }

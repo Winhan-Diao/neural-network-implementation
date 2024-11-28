@@ -10,8 +10,8 @@
 using namespace std::literals;
 
 inline void mnist() {
-    Network n(28*28, 10, std::vector{50, 40, 30}, std::vector{ActivationFunctions::LEAKYRELU, ActivationFunctions::LEAKYRELU, ActivationFunctions::LEAKYRELU}, ActivationFunctions::SOFTMAX, LossFunctions::CROSS_ENTROPY_LOSS);
-    if (std::ifstream ifs{"mnist-network-v2.dat", std::ios::binary}) {
+    Network n(28*28, 10, std::vector{128}, std::vector{ActivationFunctions::LEAKYRELU}, ActivationFunctions::STABLE_SOFTMAX_V3, LossFunctions::CROSS_ENTROPY_LOSS_V2);
+    if (std::ifstream ifs{"mnist-v4.dat", std::ios::binary}) {
         std::cout << "train on an existing network" << "\r\n";
         ifs >> n;
     } else {
@@ -34,12 +34,12 @@ inline void mnist() {
     decltype(testImages) trimmedTestImages = testImages[std::slice(0, 10000, 1)];
     decltype(testLabels) trimmedTestLabels = testLabels[std::slice(0, 10000, 1)];
 
-    size_t batchSize = 1;
-    train(n, trimmedTrainImages, trimmedTrainLabelsClassified, .0001, 5, batchSize, testImages, testLabels, [](const std::valarray<double>& predicted, const double& actual){
+    size_t batchSize = 64;
+    train(n, trimmedTrainImages, trimmedTrainLabelsClassified, .000'1, 20, batchSize, testImages, testLabels, [](const std::valarray<double>& predicted, const double& actual){
         return getGreatestLabel(predicted) == actual;
-    });
+    }, 6);
 
-    if (std::ofstream ofs{"mnist-network-v2.dat", std::ios::binary}) {
+    if (std::ofstream ofs{"garbage.dat", std::ios::binary}) {
         ofs << n;
         std::cout << "the trained network is saved." << "\r\n";
     }
